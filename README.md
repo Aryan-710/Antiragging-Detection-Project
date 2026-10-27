@@ -1,162 +1,128 @@
-# 🛡️ SafeCampus — Anti-Ragging & Cyberbullying Prevention Portal
+# SafeVoice
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.28-FF4B4B?logo=streamlit)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Security](https://img.shields.io/badge/Security-Hardened-brightgreen)
+An anti-ragging and cyberbullying reporting tool for college campuses. A student pastes a message they received, and the app checks whether it is bullying, estimates how severe it is, and generates a formal incident report that can be submitted to the college anti-ragging cell.
 
-> A victim-initiated reporting portal that uses DistilBERT transformer models to detect cyberbullying, assess severity, and auto-generate formal incident reports for college anti-ragging cells.
+Live demo: https://antiragging-detection-project-jgphtm8i7aexaccxvb4skn.streamlit.app/
 
----
+## Overview
 
-## 💡 What It Does
+The app takes a single message as input and runs it through two transformer models:
 
-Students paste a bullying message they received. The system:
+1. A DistilBERT toxicity classifier decides whether the message is cyberbullying.
+2. A zero-shot DistilBART model assigns context labels (threat, ragging, self-harm risk, etc.).
+3. A severity score from 0 to 100% is computed and mapped to one of four levels, from Low to Critical.
+4. LIME highlights the words that contributed most to the prediction.
+5. A formal incident report is generated from the results.
+6. If the risk level is Critical, the counselor is alerted.
 
-1. **Detects** if it's cyberbullying using a DistilBERT toxicity classifier
-2. **Classifies context** via zero-shot DistilBART (threat, ragging, suicide risk, etc.)
-3. **Scores severity** from 0–100% across 4 danger tiers (Low → Critical)
-4. **Explains** which words triggered the detection (LIME)
-5. **Auto-generates** a formal incident report in seconds
-6. **Alerts** the college counselor if risk is CRITICAL
+The tool is victim-initiated. Nothing is monitored automatically, and nothing is stored after the analysis.
 
-**No surveillance. No privacy invasion. Student consents at every step.**
+## Installation
 
----
-
-## 🚀 Quick Start
-
-### Local Development
+Requires Python 3.11.
 
 ```bash
-# Clone the repository
 git clone https://github.com/Aryan-710/AntiRagging.git
 cd AntiRagging
 
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # macOS/Linux
-# venv\Scripts\activate   # Windows
+source venv/bin/activate      # macOS/Linux
+# venv\Scripts\activate       # Windows
 
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the app
-streamlit run safecampus_app.py
 ```
 
-### Deploy to Streamlit Cloud
-
-1. Push this repo to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your GitHub repo → select `safecampus_app.py` as the main file
-4. Deploy ✓
-
-The app includes `runtime.txt` (Python 3.11), `packages.txt`, and `.streamlit/config.toml` for zero-config deployment.
-
-### Deploy to Heroku / Railway
+## Usage
 
 ```bash
-# Uses the included Procfile
+streamlit run SafeVoice_app.py
+```
+
+The app opens in your browser at `http://localhost:8501`.
+
+## Deployment
+
+**Streamlit Cloud:** push the repo to GitHub, create a new app on [share.streamlit.io](https://share.streamlit.io), and select `SafeVoice_app.py` as the main file. `runtime.txt`, `packages.txt` and `.streamlit/config.toml` are already included.
+
+**Heroku / Railway:** the repo includes a `Procfile`.
+
+```bash
 git push heroku main
 ```
 
----
+## Models
 
-## 🔒 Security Measures
-
-| Measure | Implementation |
+| Component | Model |
 |---|---|
-| **Input Sanitization** | HTML tags stripped via `bleach`, control characters removed, unicode normalized |
-| **XSS Prevention** | All user-derived content escaped with `html.escape()` before rendering |
-| **Rate Limiting** | Max 10 analyses per minute per session (DoS protection) |
-| **XSRF Protection** | Enabled in `.streamlit/config.toml` |
-| **No Data Persistence** | Zero storage — all analysis is ephemeral |
-| **Dependency Pinning** | Exact version pins for supply-chain safety |
-| **Input Validation** | Server-side length check, URL-only rejection, whitespace-only rejection |
+| Toxicity classifier | `martin-ha/toxic-comment-model` (DistilBERT, ~66M parameters) |
+| Context classifier | `valhalla/distilbart-mnli-12-3` (zero-shot, multi-label) |
+| Explainability | LIME (word-level) |
+| Severity score | 50% model probability, 50% weighted context flags |
 
----
+Context labels:
 
-## 📊 Model Architecture
+- Insult / harassment
+- Direct threat
+- Academic / hierarchy abuse
+- Severe ragging / hazing
+- Suicide / self-harm risk
 
-| Component | Details |
-|---|---|
-| **Toxicity Classifier** | `martin-ha/toxic-comment-model` (DistilBERT, ~66M params) |
-| **Context Classifier** | `valhalla/distilbart-mnli-12-3` (Zero-shot, multi-label) |
-| **Explainability** | LIME word-level explanation |
-| **Severity Scoring** | Composite: 50% model probability + contextual flag weights |
+## Security
 
-### Context Labels Detected
+- Input is sanitized: HTML tags are stripped with `bleach`, control characters are removed and unicode is normalized.
+- User-derived content is escaped with `html.escape()` before rendering.
+- Rate limit of 10 analyses per minute per session.
+- XSRF protection is enabled in `.streamlit/config.toml`.
+- No user data is stored; analysis is not persisted.
+- Dependencies are pinned to exact versions.
+- Server-side validation rejects over-length, URL-only and whitespace-only input.
 
-- Insult / Harassment
-- Direct Threat
-- Academic / Hierarchy Abuse
-- Severe Ragging / Hazing
-- Suicide / Self-harm Risk
-
----
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 AntiRagging/
-├── safecampus_app.py                    # Main Streamlit application
-├── requirements.txt                     # Pinned Python dependencies
-├── Procfile                             # Heroku/Railway deployment
-├── runtime.txt                          # Python version pin
-├── packages.txt                         # System dependencies (Streamlit Cloud)
-├── .gitignore                           # Excludes caches, secrets, pkl files
+├── SafeVoice_app.py                              # Streamlit app
+├── requirements.txt
+├── Procfile
+├── runtime.txt
+├── packages.txt
 ├── .streamlit/
-│   ├── config.toml                      # Production server config
-│   └── secrets.toml.example             # Secrets template
-├── models/                              # Legacy TF-IDF models (gitignored)
-├── hinglish_cyberbullying_dataset.csv   # Hinglish training data
+│   ├── config.toml
+│   └── secrets.toml.example
+├── models/                                        # Legacy TF-IDF models (gitignored)
+├── hinglish_cyberbullying_dataset.csv
 ├── Cyberbullying_SuicidePrevention_Review2.ipynb  # Research notebook
 └── README.md
 ```
 
----
+## Datasets
 
-## 🔬 Research Papers
+- [Cyberbullying Classification (Kaggle)](https://www.kaggle.com/): 47,692 labelled tweets across 6 categories.
+- `hinglish_cyberbullying_dataset.csv`: a custom Hinglish dataset for the Indian college context.
 
-| Paper | Used For |
-|---|---|
-| Cyberbullying Detection using NLP — ScienceDirect, 2025 | Baseline approach |
-| Hybrid Models for Cyberbullying — MDPI Electronics, 2021 | Model selection validation |
-| Suicidal Ideation Detection — MDPI IJERPH, 2022 | Severity scoring basis |
-| LIME "Why Should I Trust You?" — KDD 2016 | Explainability module |
-| Sentence Transformer Fine-Tuning — Springer, 2024 | Future work (BERT) |
+## References
 
----
+- Cyberbullying Detection using NLP, ScienceDirect, 2025 (baseline approach)
+- Hybrid Models for Cyberbullying, MDPI Electronics, 2021 (model selection)
+- Suicidal Ideation Detection, MDPI IJERPH, 2022 (severity scoring)
+- Ribeiro et al., "Why Should I Trust You?", KDD 2016 (LIME)
+- Sentence Transformer Fine-Tuning, Springer, 2024 (future work)
 
-## 🗺️ Future Work Roadmap
+## Roadmap
 
-| Phase | Goals |
-|---|---|
-| **Phase 1** | Fine-tune DistilBERT, true multi-class classifier (6 bullying types) |
-| **Phase 2** | FastAPI backend, browser extension, counselor SMS/email alerts |
-| **Phase 3** | Multi-modal (image + text via CLIP), Hinglish support (IndicBERT) |
+- **Phase 1:** fine-tune DistilBERT and build a multi-class classifier for 6 bullying types.
+- **Phase 2:** FastAPI backend, browser extension, counselor SMS/email alerts.
+- **Phase 3:** multi-modal input (image + text via CLIP) and Hinglish support (IndicBERT).
 
----
-
-## 📦 Dataset
-
-- [Cyberbullying Classification — Kaggle](https://www.kaggle.com/) — 47,692 labelled tweets across 6 categories
-- `hinglish_cyberbullying_dataset.csv` — Custom Hinglish bullying dataset for Indian college context
-
----
-
-## 🆘 Emergency Helplines (India)
+## Helplines (India)
 
 | Service | Contact |
 |---|---|
-| **Anti-Ragging Helpline** | `1800-180-5522` |
-| **iCall** | `9152987821` |
-| **Vandrevala Foundation** | `1860-2662-345` |
-| **iCall Chat** | [icallhelpline.org](https://icallhelpline.org) |
+| Anti-Ragging Helpline | 1800-180-5522 |
+| iCall | 9152987821 |
+| Vandrevala Foundation | 1860-2662-345 |
+| iCall Chat | https://icallhelpline.org |
 
----
+## License
 
-## 📝 License
-
-MIT License — See [LICENSE](LICENSE) for details.
+Released under the MIT License. See [LICENSE](LICENSE).
