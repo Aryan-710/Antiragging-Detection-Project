@@ -1,10 +1,10 @@
 """
-SafeCampus — Cyberbullying & Suicide Prevention Reporting Portal
+SafeVoice — Cyberbullying & Suicide Prevention Reporting Portal
 Streamlit UI for Review 2
 
 Deployment:
     Streamlit Cloud : Push to GitHub → connect repo on share.streamlit.io
-    Local           : streamlit run safecampus_app.py
+    Local           : streamlit run SafeVoice_app.py
     Heroku/Railway  : Uses Procfile automatically
 
 Security:
@@ -51,7 +51,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger("safecampus")
+logger = logging.getLogger("SafeVoice")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  CONFIGURATION — all tuneable values in one place
@@ -88,7 +88,7 @@ CONFIG = {
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="SafeCampus — Cyberbullying Reporting Portal",
+    page_title="SafeVoice — Cyberbullying Reporting Portal",
     page_icon="🛡️",
     layout="centered",
 )
@@ -816,7 +816,7 @@ models_ok = tox_pipeline is not None
 # ═══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/shield.png", width=60)
-    st.title("SafeCampus")
+    st.title("SafeVoice")
     st.caption("Anti-Ragging, Cyberbullying & Suicide Prevention Portal")
     st.markdown(
         f"<span class='version-tag'>v{__version__}</span>",
@@ -865,7 +865,7 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════════════════
 if page == "📋 Report Incident":
 
-    st.title("🛡️ SafeCampus Reporting Portal")
+    st.title("🛡️ SafeVoice Reporting Portal")
     st.markdown(
         "**You are safe here.** Paste the message(s) you received below — "
         "**English or Hinglish**, both work. "
@@ -1064,7 +1064,7 @@ if page == "📋 Report Incident":
         # ── Auto-generated report (all user content escaped) ──────────────
         safe_message = html.escape(message_input.strip())
         report_text = (
-            f"SAFECAMPUS — INCIDENT REPORT\n"
+            f"SafeVoice — INCIDENT REPORT\n"
             f"{'='*48}\n"
             f"Timestamp       : {ts}\n"
             f"Submitted by    : {html.escape(submitter)}\n"
@@ -1105,7 +1105,7 @@ if page == "📋 Report Incident":
             st.download_button(
                 label="⬇️ Download Report",
                 data=report_text,
-                file_name=f"safecampus_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                file_name=f"SafeVoice_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain",
             )
         with col_b:
@@ -1274,7 +1274,7 @@ elif page == "📊 Model Info":
 | Evaluation | F1 + accuracy + confusion matrix | + AUC-ROC curves |
 | Explainability | None | LIME word-level explanation |
 | Multi-class | Not supported | Future-work demo added |
-| Deployment | Notebook only | Streamlit SafeCampus portal |
+| Deployment | Notebook only | Streamlit SafeVoice portal |
 | Suicide risk | Lexicon only | Tiered 3-level severity scoring |
         """
         )
@@ -1320,7 +1320,7 @@ elif page == "📊 Model Info":
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "ℹ️ How It Works":
 
-    st.title("ℹ️ How SafeCampus Works")
+    st.title("ℹ️ How SafeVoice Works")
 
     st.markdown("### The problem with surveillance-based approaches")
     st.warning(
@@ -1344,7 +1344,7 @@ elif page == "ℹ️ How It Works":
 ```
 Student receives bullying message (WhatsApp, Instagram, anywhere)
         ↓
-Opens SafeCampus portal on their phone/laptop
+Opens SafeVoice portal on their phone/laptop
         ↓
 Pastes the message(s) — THEIR choice, THEIR consent
         ↓
@@ -1381,7 +1381,7 @@ Student downloads report or submits to counselor
         )
     with col2:
         st.success(
-            "**Victim-initiated (SafeCampus)**\n\n"
+            "**Victim-initiated (SafeVoice)**\n\n"
             "- Student consents at the moment they need help\n"
             "- 100% of reports are real complaints\n"
             "- Fully legal — student shares their own messages\n"
@@ -1395,6 +1395,6 @@ Student downloads report or submits to counselor
         "Studies show **70–80% of cyberbullying victims never report it**. "
         "The two main reasons are **shame** (having to explain it to a person) "
         "and **effort** (having to write a formal complaint). "
-        "SafeCampus removes both barriers — the student talks to a machine, "
+        "SafeVoice removes both barriers — the student talks to a machine, "
         "and the complaint is auto-generated. That is the real-world value of this project."
     )

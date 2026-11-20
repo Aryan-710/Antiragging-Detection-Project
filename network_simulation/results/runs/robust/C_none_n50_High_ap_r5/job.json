@@ -1,0 +1,1 @@
+{"exp": "robust", "name": "C_none_n50_High_ap_r5", "scenario": "C", "prio": "none", "n": 50, "load_name": "High", "load": 5.181, "run": 5, "failure": "ap", "variant": "", "duration": 90, "burst_t": 30, "fail_t": 50, "uplink": ""}

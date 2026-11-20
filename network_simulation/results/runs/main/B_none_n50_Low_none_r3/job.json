@@ -1,0 +1,1 @@
+{"exp": "main", "name": "B_none_n50_Low_none_r3", "scenario": "B", "prio": "none", "n": 50, "load_name": "Low", "load": 0.648, "run": 3, "failure": "none", "variant": "", "duration": 60, "burst_t": 30, "fail_t": 0, "uplink": ""}

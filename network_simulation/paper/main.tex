@@ -1,0 +1,21 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage[a4paper,margin=0.8in]{geometry}
+\usepackage{graphicx,booktabs,amsmath,hyperref,cite,array}
+\usepackage[T1]{fontenc}
+\title{SafeVoice over Ad-hoc Mesh or Wi-Fi? A Controlled ns-3 Study of Severity-Prioritised SOS Delivery in a Multi-Storey Hostel}
+\author{Aryan \\ \small Dept.\ of Electronics and Communication Engineering, Bharati Vidyapeeth College of Engineering, New Delhi\\ \small (draft; co-authors and affiliations to be added)}
+\date{}
+\begin{document}
+\twocolumn[\maketitle
+\begin{abstract}
+SafeVoice is a campus tool that scores ragging/bullying reports with an NLP pipeline and raises an alert for critical cases. We ask whether alerts should travel over an infrastructure-independent
+802.11 ad-hoc mesh (AODV) with severity-based priority, instead of ordinary Wi-Fi. Using ns-3.44 and a 4-floor hostel model, we compare (A) a mesh with EDCA and a push-out severity queue, (B) the same mesh without priority,
+(C) provisioned 8-AP infrastructure Wi-Fi, and (C-up) infrastructure whose shared uplink is congested, with one workload file shared by all scenarios, load levels calibrated to the mesh's saturation capacity, and
+208 executed runs. Provisioned infrastructure delivered 100\% of critical alerts at all loads and outperformed the mesh. Severity priority gave no measurable gain over the plain mesh up to high load and reduced critical delivery at saturation
+(68.7\% vs 88.4\%, 8 paired runs; unadjusted $p=0.0078$, not significant after Holm correction); an ablation links the deficit to the EDCA mechanism, whose cause we did not establish.
+The mesh did outperform an infrastructure path with a congested uplink at high and saturated load (+14 and +20 pp). We report four simulation artefacts caught by validation gates, the scale-down from our plan, and limits on statistical power.
+We conclude that the mesh is a useful fallback path but that the priority scheme as designed is not supported by the evidence.
+\end{abstract}\vspace{1em}]
+\input{part1_static}
+\input{part2_results}
+\end{document}

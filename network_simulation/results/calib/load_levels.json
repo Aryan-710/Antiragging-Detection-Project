@@ -1,0 +1,9 @@
+{
+ "capacity_Mbps": 4.55112,
+ "levels": {
+  "Low": 0.455,
+  "Medium": 1.82,
+  "High": 3.641,
+  "Saturated": 5.461
+ }
+}

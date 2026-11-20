@@ -1,0 +1,1 @@
+{"exp": "main", "name": "C_none_n50_Low_none_r1", "scenario": "C", "prio": "none", "n": 50, "load_name": "Low", "load": 0.648, "run": 1, "failure": "none", "variant": "", "duration": 60, "burst_t": 30, "fail_t": 0, "uplink": ""}

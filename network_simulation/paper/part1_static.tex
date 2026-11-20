@@ -1,0 +1,145 @@
+\section{Introduction}
+Ragging and cyberbullying remain persistent problems in Indian higher education despite regulation~\cite{ugc2009}.
+SafeVoice is a victim-initiated reporting tool: a student pastes a message, a DistilBERT toxicity classifier and a zero-shot
+DistilBART context classifier produce a composite severity score in $[0,1]$, LIME explains the decision~\cite{ribeiro2016,sanh2019},
+and \emph{critical} cases (score $\ge 0.75$) trigger an immediate counsellor alert.
+The NLP pipeline decides \emph{how urgent} a report is; it says nothing about whether the alert \emph{arrives}.
+In a hostel the delivery path is the building's Wi-Fi and the Internet uplink behind it, and these are least reliable exactly when many
+people are online (nights, exams) or when an incident causes a surge of traffic.
+
+This paper studies the transport layer underneath SafeVoice. We ask three questions:
+(Q1) if alerts travel over an infrastructure-independent multi-hop ad-hoc mesh formed by the students' phones, does tagging them with
+the NLP severity and prioritising them by severity improve delivery of the most severe alerts compared with the same mesh without priority?
+(Q2) how does the mesh compare with a conventional infrastructure Wi-Fi deployment, both when the infrastructure is well provisioned
+and when its shared uplink is congested? (Q3) which priority mechanism (802.11e EDCA, a severity-aware queue discipline, or both) is responsible
+for any gain, and how do the systems behave under node or access-point failure and during a sudden crisis burst?
+
+\paragraph{Contributions.}
+(i) A single, tested mapping from the application's severity score to network classes (DSCP/802.11e access category/queue band).
+(ii) An ns-3 study framework with explicit fairness controls: one scenario-independent workload file whose hash is logged per run
+(identical positions, mobility, traffic and failures in all scenarios), identical PHY, queue sizes and rate settings, and a push-out
+priority queue discipline with a unit test.
+(iii) A validation record. Four modelling artefacts that would each have produced misleading results were detected by sanity gates and fixed
+(Section~\ref{sec:validation}); we report them because they are easy to reproduce in other ns-3 studies.
+(iv) An honest evaluation, including conditions where the proposed design does not help and where infrastructure Wi-Fi is simply better.
+All code, workloads and raw per-packet logs are released with the paper.
+
+\section{Background and Related Work}
+\textbf{Ad-hoc routing.} AODV~\cite{rfc3561} discovers routes on demand by flooding route requests; its behaviour in dense networks is
+dominated by control traffic and by the broadcast-storm effect~\cite{ni1999}. Comparative studies of MANET protocols~\cite{broch1998,das2000}
+motivate our choice of a reactive protocol for a mostly static, partly mobile hostel. Link quality matters: shortest-hop routes found over
+weak links perform badly~\cite{decouto2003}; we observed exactly this effect (Section~\ref{sec:validation}).
+\textbf{Service differentiation.} IEEE 802.11e EDCA gives four access categories (voice, video, best effort, background) different
+contention parameters and transmit-opportunity limits~\cite{ieee80211,mangold2003}; the saturation behaviour of the underlying
+DCF is analysed in~\cite{bianchi2000}. EDCA differentiates \emph{channel access}; it does not by itself decide which packet is dropped when
+a buffer fills, which is why we also evaluate a queue-level mechanism.
+\textbf{Simulation validity.} Wireless simulators embed assumptions (propagation, interference, capture) that can change conclusions~\cite{kotz2004};
+we therefore state every PHY/propagation assumption and list threats to validity explicitly. We use ns-3~\cite{riley2010}.
+
+\section{System Model}
+\subsection{From text severity to network class}
+The application computes a severity score $s\in[0,1]$ (50\% model probability, 50\% weighted context flags) and maps it to
+CRITICAL ($s\ge0.75$), HIGH ($s\ge0.50$), MODERATE ($s\ge0.25$) or LOW. The network study uses three SOS classes
+(Table~\ref{tab:map}); \texttt{tools/severity\_bridge.py} is the single definition of the mapping and a unit test parses the application's
+configuration to ensure that the thresholds cannot drift apart.
+\begin{table}[t]\centering\caption{Severity-to-network mapping used in scenario A.}\label{tab:map}
+\small\begin{tabular}{@{}lcccc@{}}\toprule
+App risk level & SOS class & DSCP & 802.11e AC & queue band\\\midrule
+CRITICAL ($\ge0.75$) & 3 & CS6 & AC\_VO & 3\\
+HIGH ($\ge0.50$) & 2 & CS5 & AC\_VI & 2\\
+MODERATE/LOW & 1 & 0 & AC\_BE & 1\\
+other traffic & -- & 0 & AC\_BE & 0\\\bottomrule\end{tabular}\end{table}
+
+\subsection{Scenarios}
+\textbf{A (proposed)}: 802.11n ad-hoc mesh, AODV, severity priority (EDCA mapping of Table~\ref{tab:map} \emph{and} a severity-aware queue discipline).
+\textbf{B (fair baseline)}: identical mesh and routing, no priority: all traffic is best effort in a FIFO queue.
+\textbf{C (current practice, provisioned)}: infrastructure Wi-Fi: 8 access points (two per floor), each on its own orthogonal 20~MHz channel,
+each station statically bound to the AP with the strongest computed signal, APs bridged through a gigabit wired core to a campus server that
+hosts the SOS sink; SOS is ordinary best-effort traffic.
+\textbf{C-up (current practice, congested uplink)}: as C, but the shared link between the campus core and the server is capacity limited
+to $0.3\times$ the mesh saturation capacity, so that it saturates at the same offered load as the mesh (30\% of background flows are gateway-bound).
+C-up models the mechanism by which hostel Wi-Fi congests an Internet-dependent alert: a shared bottleneck, not radio capacity.
+
+\section{Simulation Methodology}\label{sec:method}
+\subsection{Environment and workload}
+All experiments use ns-3.44 (PyPI \texttt{ns3==3.44.post0} libraries; the planned 3.40 source tarball was not reachable from our build
+environment) compiled with g++~13.3, C++20, on a 2-vCPU Linux container. The hostel has 4 floors of $40\times15$~m with a central corridor
+and 12 rooms per floor (48 rooms). $n$ student phones (default $n=50$; $n\in\{25,75,100\}$ in the sweeps) plus one security desk
+(ground-floor corridor) are placed as follows: 80\% of students are static at uniformly random positions in random rooms; 20\% are mobile,
+following a random-waypoint model inside their floor's corridor (speed $U(1,1.5)$~m/s, pause $U(0,10)$~s).
+
+\paragraph{Propagation and PHY (identical in A, B, C).} Log-distance path loss (exponent 3.0, 46.68~dB at 1~m) plus a deterministic symmetric
+loss of 5~dB per wall and 13~dB per floor slab (a \texttt{PropagationLossModel} subclass: walls are counted analytically along the
+straight line; floors from the height difference). 802.11n, 5~GHz, 20~MHz, one spatial stream, fixed HT-MCS3 (26~Mb/s) with
+ConstantRate, 16.02~dBm transmit power, receiver sensitivity $-92$~dBm, ns-3's NIST error model, default A-MPDU aggregation. Broadcast frames are sent at the
+data MCS. Ad-hoc scenarios share one channel (36); scenario C uses channels 36--64, one per AP.
+
+\paragraph{Queues (identical everywhere).} Every station uses an explicit multi-queue root (\texttt{mq}) with four children of 100 packets,
+one per access category (we do not rely on ns-3's default FQ-CoDel), and every Wi-Fi MAC queue is limited to 100 packets and 5~s
+lifetime (ns-3's default 500~ms lifetime would silently expire packets and would be mislabelled as congestion). In A the children are
+severity push-out queue discs; in B and C they are FIFO.
+
+\paragraph{SOS traffic.} 160-byte UDP datagrams, Poisson arrivals at 3/s network-wide from uniformly random students to the desk; severity 3/2/1 with
+probabilities 10/30/60\%; no application retries. At $t=30$~s a crisis burst adds 20 SOS from 20 distinct students within 5~s
+(forced mix 5 critical/7 high/8 low). Each packet carries a header with sequence, transmit time, severity and source; all per-packet
+statistics are computed from it. The first 10~s are a warm-up (every station pings the desk once so routes/associations exist; excluded
+from statistics), followed by a 60~s measurement window (90~s with a failure at $t=50$~s in the robustness experiment); no SOS is generated in
+the last 5~s.
+
+\paragraph{Background traffic.} Video-like CBR flows (0.25--0.5~Mb/s, 1200~B) carry 70\% of the offered load and web-like on/off flows
+(0.5~Mb/s while ON; ON/OFF exponential with means 1/3~s, 1000~B) 30\%; 30\% of flows go to the gateway (desk or server), the rest to random peers.
+Flow rates are scaled down from the video rates in our original plan because a 1--2~Mb/s stream saturates a multi-hop 20~MHz mesh by itself.
+\emph{Load levels} are defined as 10/40/80/120\% of the saturation capacity of the ad-hoc mesh, obtained from a calibration sweep
+(Section~\ref{sec:calib}).
+
+\subsection{Priority mechanisms}
+\emph{EDCA level}: the sender sets the IP ToS from the SOS class (Table~\ref{tab:map}); ns-3 maps DSCP$\gg3$ to the user priority and
+hence the access category at every hop, because forwarding preserves the IP header.
+\emph{Queue level}: \texttt{SvPriorityQueueDisc} has four severity bands, strict-priority dequeue, FIFO within a band, and \emph{push-out}:
+when the disc is full and a strictly lower non-empty band exists, the oldest packet of the lowest non-empty band is dropped and the arrival is accepted;
+otherwise the arrival is dropped. (ns-3's \texttt{PrioQueueDisc} does not push out.) The severity is read from the UDP destination port
+(7001--7003), independently of the ToS, so the queue mechanism can be evaluated without EDCA. A unit test checks dequeue order and
+push-out accounting. Because \texttt{mq} gives each access category its own child, the queue discipline only reorders packets \emph{within} an
+access category; in the full design that is class~1 versus background inside AC\_BE. The ablation therefore uses EDCA only (FIFO queues),
+queue only (all traffic in AC\_BE, severity from the port) and both.
+
+\subsection{Load calibration}\label{sec:calib}
+A pilot (scenario B, $n=50$, run~1, 60~s window) offered 1--12~Mb/s of background traffic and measured delivered background goodput
+(Table~\ref{tab:calib}); the maximum, 6.48~Mb/s, is taken as the saturation capacity, giving Low/Medium/High/Saturated $=$
+0.65/2.59/5.18/7.77~Mb/s offered. The uplink of C-up is $0.3\times6.48=1.94$~Mb/s.
+\begin{table}[t]\centering\caption{Saturation calibration of the 50-node mesh (scenario B, one run per point).}\label{tab:calib}
+\resizebox{\columnwidth}{!}{\input{tables/calibration_tab.tex}}\end{table}
+
+\subsection{Metrics and statistics}
+Per severity class: delivery ratio (PDR), mean/median/95th-percentile delay and jitter (mean absolute difference of consecutive delays) of \emph{delivered} packets,
+and deadline success (fraction of \emph{sent} packets delivered within 2~s or 5~s; undelivered counts as a failure). Delay is always read together with PDR. Also: background
+goodput (to detect starvation), AODV control packets/s, drops by cause (queue-disc overflow, push-out, MAC queue expiry, MAC retry limit,
+no route), hop count of delivered packets, and for the burst the PDR and delay of critical packets.
+Each configuration is simulated with independent seeds (\texttt{RngRun}) and the \emph{same workload file} in all scenarios, so scenarios are compared
+pairwise per seed. We report means with 95\% Student-$t$ confidence intervals over runs, paired two-sided Wilcoxon signed-rank tests (ties/zero differences
+handled; if all paired differences are zero the result is reported as ``no difference''), the matched-pairs rank-biserial correlation as effect size,
+and Holm correction within each metric family. We make no significance claim without a test.
+
+\subsection{Deviations from the original plan}
+Our plan called for 100 nodes, 200~s windows and 30 runs. On the available compute (a loaded 100-node, 70~s mesh run costs about 3 CPU-minutes) the full
+grid would take days, so: the default scale is $n=50$ with 8 runs per configuration (6/5/3/3 for ablation/robustness/$n{=}100$/density), 60~s windows, 8 APs instead of 4--6
+(Section~\ref{sec:validation}), TCP and DSDV are not evaluated (code paths exist but were not run), the ``priority route discovery'' option is not implemented, and we use ns-3.44.
+With 8 runs and about 23 critical packets per run the study can detect large effects only; Section~\ref{sec:threats} discusses this.
+
+\section{Validation: gates and the artefacts they caught}\label{sec:validation}
+We defined sanity gates before running experiments. They passed only after fixing four problems, each of which would have produced a wrong conclusion:
+\begin{enumerate}
+\item \textbf{Route-reply storm.} With ns-3's AODV defaults the 100-node mesh generated runaway control traffic even at zero background load (about 4\,000 control packets/s; RREQ/RREP/RERR/HELLO counts 8372/7965/2071/4737 in the pilot), about 4 minutes of wall time per 30~s of simulated time, and only 59--83\% of warm-up pings arrived. Setting the RFC~3561 ``destination only'' flag (no replies from intermediate caches) reduced the counts to 1777/35/134/246 in the 18~s check run, cut wall time about 10$\times$ (91.5~s to 9.0~s for the same run) and raised warm-up delivery to 97--98\%.
+\item \textbf{Gray zone.} Route discovery broadcasts used the basic rate, so AODV selected links that fixed-MCS3 unicast could not sustain:
+zero-load SOS delivery was 87.2\% (MCS3 unicast, basic-rate broadcast; $n=100$, run~1) versus 97.2\% when broadcasts are sent at the data MCS (98.9\% with MCS0 everywhere).
+\item \textbf{Coverage hole.} With one AP per floor, 7 of 100 stations never associated (best-AP signal $-82.4$ to $-84.2$~dBm, below ns-3's $-82$~dBm
+preamble-detection threshold), handicapping C at zero load; two APs per floor associate 100/100.
+\item \textbf{Wired-backhaul artefact.} Modelling the backhaul as one shared 5~ms CSMA bus capped the wired side at about $1/5\,\text{ms}=200$ frames/s because ns-3's channel is
+busy for the whole propagation delay: at 4.3~Mb/s offered ($n=50$) scenario C delivered only 2.12~Mb/s with 51.8\% SOS delivery and \emph{no} wireless drops. A switched star
+of full-rate links delivers 100\%. This would have wrongly shown infrastructure Wi-Fi collapsing under load.
+\end{enumerate}
+Remaining gates (results on the final configuration, $n=50$, 3 runs, zero background load, 60~s): (G3) SOS delivery 96.7--97.7\% in the mesh
+and 100\% in C; A, B, and the EDCA-only/queue-only variants differ by at most 1 percentage point (about 2 packets in 190), as expected when nothing is congested;
+(G4) the workload hash is identical for A, B, C in every run; (G5) 49.7 of 50 warm-up pings reach the desk before measurement starts and 50/50 stations are associated in C;
+(G6) delivered SOS take 1--5 hops (mean 2.3), i.e.\ the mesh is genuinely multi-hop; (G7) the queue-disc unit test passes (13/13 checks) and, with priority on,
+critical packets are \emph{relayed} through AC\_VO queues at intermediate nodes (28 relayed versus 23 originated in run~1), so the marking survives forwarding.

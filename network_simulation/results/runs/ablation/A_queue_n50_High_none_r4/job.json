@@ -1,0 +1,1 @@
+{"exp": "ablation", "name": "A_queue_n50_High_none_r4", "scenario": "A", "prio": "queue", "n": 50, "load_name": "High", "load": 5.181, "run": 4, "failure": "none", "variant": "", "duration": 60, "burst_t": 30, "fail_t": 0, "uplink": ""}
