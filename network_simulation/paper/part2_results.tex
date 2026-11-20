@@ -1,0 +1,108 @@
+\section{Results}\label{sec:results}
+All numbers below are produced by \texttt{tools/analyze.py} from the 208 executed runs (main 128, ablation 24, robustness 20, $n{=}100$ 12, density 24);
+confidence intervals are 95\% Student-$t$ over runs. About 195 SOS packets are generated per run, of which about 24 are critical (including 5 in the burst), so each per-run critical PDR is a ratio of about 24 packets and has a granularity of about 4 pp; we therefore also report all-SOS delivery.
+
+\subsection{Main comparison ($n=50$)}
+Table~\ref{tab:main} and Fig.~\ref{fig:pdr} give the central result.
+\begin{table*}[t]\centering\caption{Main grid, $n=50$, 8 runs per cell. ``crit.'' = severity-3 SOS; the deadline column counts undelivered packets as failures; p95 is over delivered packets only; the burst column is the fraction of the burst's critical SOS delivered (pooled over runs).}\label{tab:main}
+\small\input{tables/main_tab.tex}\end{table*}
+\begin{figure}[t]\centering\includegraphics[width=\columnwidth]{figures/fig1_crit_pdr_vs_load.pdf}
+\caption{Critical SOS delivery ratio versus background load ($n=50$, mean $\pm$ 95\% CI over 8 runs).}\label{fig:pdr}\end{figure}
+
+\begin{enumerate}
+\item \textbf{Provisioned infrastructure Wi-Fi (C) delivered every SOS in every run at every load} (all-SOS PDR 100\%; critical-class p95 delay $\le$1~ms). Under our model, a well-provisioned
+multi-AP deployment is simply better than the mesh; the mesh cannot match it.
+\item \textbf{The proposed design (A) did not outperform the same mesh without priority (B).} At Low, Medium and High load the difference in critical PDR is
+$-2.4$, $-0.2$ and $+3.5$ percentage points (pp), all with $p>0.05$ (Table~\ref{tab:paired}). \textbf{At Saturated load A was worse than B by 19.7~pp}
+(68.7\% vs 88.4\%; every one of 8 paired runs favoured B; unadjusted $p=0.0078$, which is the smallest value attainable with 8 pairs; Holm-adjusted $p=0.17$).
+With so few pairs we cannot claim a statistically established effect after correction, but the sign is consistent and the effect size large (rank-biserial $r=-1.0$).
+\item \textbf{The infrastructure with a congested uplink (C-up) fails first.} It matches or beats the mesh at Low/Medium load but delivers only 76\% of critical SOS at High
+and 48\% at Saturated. Against C-up, A is $+14.2$~pp at High ($p=0.16$, not significant) and $+20.4$~pp at Saturated (unadjusted $p=0.0078$, Holm $p=0.17$). C-up's
+bottleneck is a modelling choice (uplink $=0.3\times$ the mesh capacity), so this comparison shows \emph{when} a shared uplink hurts, not how often it does.
+\item \textbf{Priority does not starve background traffic.} Background goodput in A and B is within 7\% at every load (e.g.\ 4.03 vs 3.87~Mb/s at High; 5.22 vs 5.47~Mb/s at Saturated).
+\end{enumerate}
+\begin{table}[t]\centering\caption{Paired Wilcoxon tests on critical-class PDR (A minus comparator, same seeds and workloads). $p_{\rm Holm}$: Holm correction over these 12 tests.}\label{tab:paired}
+\resizebox{\columnwidth}{!}{\input{tables/paired_tab.tex}}\end{table}
+
+\paragraph{Delay.} Delivered packets are fast in every system (median delay $\le$7~ms), but the tail differs: critical p95 delay in the mesh grows to about 1.3--1.4~s at Saturated, while in C it is $\le$1~ms (Table~\ref{tab:main}, Fig.~\ref{fig:cdf}).
+Because delay statistics exclude lost packets, the deadline column (2~s) is the relevant combined measure, and it follows the PDR ordering.
+\begin{figure}[t]\centering\includegraphics[width=\columnwidth]{figures/fig4_delay_cdf_Saturated.pdf}
+\caption{Delay CDFs of delivered SOS per severity at Saturated load (scale of the plateau shows the delivery ratio).}\label{fig:cdf}\end{figure}
+
+\paragraph{Crisis burst.} Fig.~\ref{fig:burst} shows cumulative delivery of the 5 critical SOS in the burst. Ordering is the same as in the steady state (C $>$ B $\ge$ A $>$ C-up at Saturated);
+the burst has only 5 critical packets per run (40 over 8 runs), so we draw no further conclusion.
+\begin{figure}[t]\centering\includegraphics[width=\columnwidth]{figures/fig6_burst_timeline.pdf}
+\caption{Cumulative delivery of critical burst SOS after burst start.}\label{fig:burst}\end{figure}
+
+\subsection{Ablation: which priority mechanism?}
+Table~\ref{tab:abl} separates the two mechanisms (6 runs; paired tests in \texttt{results/tables/ablation\_paired\_tests.csv}, matched on run number against B).
+\begin{table}[t]\centering\caption{Ablation, $n=50$ (B and A rows: 8 runs; ablation rows: 6 runs).}\label{tab:abl}
+\resizebox{\columnwidth}{!}{\input{tables/ablation_tab.tex}}\end{table}
+At Saturated load the loss relative to B is carried by the EDCA mechanism: EDCA-only $-20.2$~pp ($p=0.031$ unadjusted, 6 pairs), whereas queue-only is $-7.5$~pp ($p=0.19$) and
+both together $-19.8$~pp. At High load, queue-only shows the best critical delivery of all variants ($+4.2$~pp over B, $p=0.0625$, which is the closest to significance
+reachable with 6 pairs), EDCA-only none ($-0.1$~pp). After Holm correction nothing in the ablation is significant. The queue discipline rarely engages push-out (about 2--17 packets per run), because \texttt{mq} gives each
+access category its own queue and only low-priority traffic competes inside AC\_BE.
+\emph{We did not isolate why EDCA hurts at saturation.} Candidate explanations that we have \emph{not} tested include more aggressive channel contention
+of voice-class transmitters causing more collisions among hidden terminals on a single shared channel, and route-discovery traffic (best effort) being starved by the voice-class data. The data show
+that MAC retry-limit drops and no-route events are similar in EDCA-only and B, so a simple rise in retry failures is not the explanation.
+\begin{figure}[t]\centering\includegraphics[width=\columnwidth]{figures/fig7_ablation.pdf}
+\caption{Ablation of the priority mechanisms.}\label{fig:abl}\end{figure}
+
+\subsection{Scale, density and robustness}
+Table~\ref{tab:scale} summarises the sweeps. The $n=25$, 75 and 100 points have only 3 runs each (minimum attainable two-sided exact $p=0.25$), so \emph{no} test is significant and the intervals are wide;
+they are included as consistency checks, not as evidence. At $n=100$ the picture is the same as at $n=50$: C 100\%, A below B (75\% vs 86\% critical PDR, 3 runs), and the
+congested-uplink variant, which was fixed at the $n=50$ capacity and carries only 30\% gateway-bound background, did \emph{not} saturate in the three $n=100$ runs (100\% critical PDR).
+This shows that C-up's collapse depends on how much traffic is gateway-bound and how the uplink is sized, not on the infrastructure as such. AODV control traffic grows with scale from about 340 to 840 packets/s ($n=50$ to 100).
+\begin{table*}[t]\centering\caption{Scale and failure experiments at High load. Robustness runs use 90~s windows with the fault at $t=50$~s: 10\% of non-desk nodes switched off in A and B, one AP's radio off in C and C-up with no re-association (a worst-case lower bound for C).}\label{tab:scale}
+\small\input{tables/scale_tab.tex}\end{table*}
+Under 10\% node failure A delivers 79.6\% and B 85.7\% of critical SOS over the 90~s window ($p=0.38$, no significant difference). We did not run a fault-free 90~s control, so we do not quantify the loss caused by the failure itself.
+With one of 8 APs down, C still delivers 94.4\% (stations bound to the dead AP lose all service because there is no re-association), so its fault tolerance is limited
+by static association rather than by the technology. C-up's 83.8\% under AP failure has an interval of $\pm$23 pp and is not distinguishable from the others.
+
+\section{Discussion}
+\textbf{Answer to Q1.} In this model, severity priority on the mesh did \emph{not} improve delivery of the most severe alerts. It was neutral up to High load and harmful at Saturated load. We therefore do not claim that the proposed priority scheme works.
+\textbf{Answer to Q2.} The mesh is a viable fallback rather than a replacement: it keeps delivering 87--96\% of critical SOS up to High load without any infrastructure, and it beats an infrastructure path whose uplink is the shared bottleneck
+(C-up) at High--Saturated load, but a provisioned multi-AP Wi-Fi network outperforms it everywhere. The practical conclusion for SafeVoice is a \emph{dual-path} design: use infrastructure when the uplink is healthy,
+and the mesh as an infrastructure-independent fallback when it is not.
+\textbf{Answer to Q3.} Of the two priority mechanisms, EDCA is the one associated with the Saturated-load deficit, and the queue discipline alone is neutral to mildly positive; neither is established statistically after correction.
+A more promising direction, not implemented here, is prioritising route discovery and control traffic as well as data, because SOS delivery in the mesh is limited by route availability (no-route drops are 1000--1200 per run at Saturated) as well as by queueing.
+
+\section{Threats to Validity and Limitations}\label{sec:threats}
+\begin{itemize}
+\item \textbf{Simulation versus hardware.} ns-3 abstracts the radio: a deterministic log-distance plus wall/floor loss model (no fading or shadowing), the NIST error model, no interference from outside the building, no device heterogeneity or battery effects. Absolute delivery ratios should not be read as predictions for real phones; the relative ordering is the object of study.
+\item \textbf{Statistical power.} The main grid has 8 runs, the ablation 6, robustness 5, scale and density 3, instead of the 30 planned. Each run has only about 24 critical packets, so per-run critical PDR is coarse. The smallest attainable exact two-sided Wilcoxon $p$ is 0.0078 for 8 pairs, which cannot survive Holm correction across 12 tests; we therefore report both unadjusted and adjusted values and make no ``significant'' claims after correction. More runs (or a pooled analysis over all SOS packets) would be needed to resolve the A-versus-B differences.
+\item \textbf{Scale-down.} $n=50$ rather than 100 (with $n=100$ checked at one load for 3 runs), 60~s windows instead of 200~s, smaller background flow rates, 8 APs instead of 4--6 (to remove a coverage hole), see Section~\ref{sec:method}. The load levels are tied to the saturation of the 50-node mesh found by a single-run pilot.
+\item \textbf{Propagation and mobility.} Walls are counted analytically along the straight line on a regular room grid; mobility is confined to corridors; 80\% of nodes are static. Different building geometry would change hop counts (here 1--7, mean about 2.4).
+\item \textbf{Single shared channel in the mesh.} The ad-hoc network uses one 20~MHz channel for all nodes whereas C uses eight, a structural advantage of infrastructure; a multi-channel mesh was out of scope.
+\item \textbf{Infrastructure model.} C excludes Internet latency and loss (wired links 0.1~ms), has no AP re-association, and its AP failure result is therefore a lower bound. C-up's congestion is imposed by construction ($0.3\times$ capacity uplink), so its crossing point with the mesh is a function of that parameter.
+\item \textbf{Traffic.} Synthetic UDP, no TCP, no application retransmission; SOS datagrams are sent once. Real clients would retry, which would raise delivery in all systems.
+\item \textbf{Unexplained effect.} Why EDCA lowers critical delivery at saturation is not established (Section~\ref{sec:results}); our explanations are hypotheses.
+\item \textbf{Not evaluated.} DSDV, priority route discovery, NetAnim output, delay under TCP. A custom ns-3 loss model and queue disc were validated by tests and gates, not by comparison with measurements.
+\end{itemize}
+
+\section{Conclusion}
+We built a reproducible ns-3 study of three transports for the SafeVoice SOS alerts, using identical workloads across all scenarios, and found that
+(i) provisioned infrastructure Wi-Fi outperformed the mesh at every load; (ii) severity priority on an AODV mesh was neutral up to high load and worse at saturation, so the hypothesis that it helps is not supported; (iii) the mesh does outperform infrastructure whose shared uplink is congested, supporting a dual-path design;
+and (iv) validation exposed four modelling artefacts that would each have changed the conclusions. Future work: more runs, 100--200 nodes at full duration, prioritised route discovery, a multi-channel mesh, TCP and application retries, and validation against a hardware testbed.
+The code, workloads, raw per-packet logs and scripts are released with this paper.
+
+\section*{Acknowledgements}
+The simulation and analysis code and this manuscript draft were produced with the assistance of an AI model (Claude); the authors are responsible for verifying all content.
+
+\begin{thebibliography}{99}
+\bibitem{ugc2009} University Grants Commission, \emph{Regulations on Curbing the Menace of Ragging in Higher Educational Institutions}, 2009.
+\bibitem{rfc3561} C.~Perkins, E.~Belding-Royer, S.~Das, ``Ad hoc On-Demand Distance Vector (AODV) Routing,'' RFC 3561, 2003.
+\bibitem{ieee80211} IEEE Std 802.11-2020, \emph{Wireless LAN Medium Access Control (MAC) and Physical Layer (PHY) Specifications}.
+\bibitem{mangold2003} S.~Mangold, S.~Choi, G.~Hiertz, O.~Klein, B.~Walke, ``Analysis of IEEE 802.11e for QoS support in wireless LANs,'' \emph{IEEE Wireless Commun.}, vol.~10, no.~6, 2003.
+\bibitem{bianchi2000} G.~Bianchi, ``Performance analysis of the IEEE 802.11 distributed coordination function,'' \emph{IEEE JSAC}, vol.~18, no.~3, 2000.
+\bibitem{riley2010} G.~Riley, T.~Henderson, ``The ns-3 network simulator,'' in \emph{Modeling and Tools for Network Simulation}, Springer, 2010.
+\bibitem{broch1998} J.~Broch et al., ``A performance comparison of multi-hop wireless ad hoc network routing protocols,'' \emph{ACM MobiCom}, 1998.
+\bibitem{ni1999} S.-Y.~Ni, Y.-C.~Tseng, Y.-S.~Chen, J.-P.~Sheu, ``The broadcast storm problem in a mobile ad hoc network,'' \emph{ACM MobiCom}, 1999.
+\bibitem{decouto2003} D.~De Couto, D.~Aguayo, J.~Bicket, R.~Morris, ``A high-throughput path metric for multi-hop wireless routing,'' \emph{ACM MobiCom}, 2003.
+\bibitem{kotz2004} D.~Kotz, C.~Newport, R.~Gray, J.~Liu, Y.~Yuan, C.~Elliott, ``Experimental evaluation of wireless simulation assumptions,'' \emph{ACM MSWiM}, 2004.
+\bibitem{das2000} S.~R.~Das, C.~E.~Perkins, E.~M.~Royer, ``Performance comparison of two on-demand routing protocols for ad hoc networks,'' \emph{IEEE INFOCOM}, 2000.
+\bibitem{ribeiro2016} M.~T.~Ribeiro, S.~Singh, C.~Guestrin, ```Why should I trust you?': Explaining the predictions of any classifier,'' \emph{ACM KDD}, 2016.
+\bibitem{sanh2019} V.~Sanh, L.~Debut, J.~Chaumond, T.~Wolf, ``DistilBERT, a distilled version of BERT,'' arXiv:1910.01108, 2019.
+\bibitem{wilcoxon1945} F.~Wilcoxon, ``Individual comparisons by ranking methods,'' \emph{Biometrics Bulletin}, vol.~1, no.~6, 1945.
+\bibitem{holm1979} S.~Holm, ``A simple sequentially rejective multiple test procedure,'' \emph{Scand. J. Statist.}, vol.~6, 1979.
+\end{thebibliography}

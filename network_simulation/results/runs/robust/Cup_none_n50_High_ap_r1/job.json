@@ -1,0 +1,1 @@
+{"exp": "robust", "name": "Cup_none_n50_High_ap_r1", "scenario": "C", "prio": "none", "n": 50, "load_name": "High", "load": 5.181, "run": 1, "failure": "ap", "variant": "up", "duration": 90, "burst_t": 30, "fail_t": 50, "uplink": "1.9430Mbps"}

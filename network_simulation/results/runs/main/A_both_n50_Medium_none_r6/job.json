@@ -1,0 +1,1 @@
+{"exp": "main", "name": "A_both_n50_Medium_none_r6", "scenario": "A", "prio": "both", "n": 50, "load_name": "Medium", "load": 2.591, "run": 6, "failure": "none", "variant": "", "duration": 60, "burst_t": 30, "fail_t": 0, "uplink": ""}

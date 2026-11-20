@@ -1,0 +1,2 @@
+AC-STATS VO originated=0 relayed=0 | VI originated=0 relayed=0
+DONE scenario=B prio=none n=50 run=1 hash=448e98f5b28338e3 events=34703446 wall=68.5s | SOS pdr: s3 20/23 s2 48/56 s1 111/116 | warm 49/50 assoc 0

@@ -1,0 +1,1 @@
+{"exp": "confirm100", "name": "C_none_n100_High_none_r2", "scenario": "C", "prio": "none", "n": 100, "load_name": "High", "load": 5.181, "run": 2, "failure": "none", "variant": "", "duration": 60, "burst_t": 30, "fail_t": 0, "uplink": ""}

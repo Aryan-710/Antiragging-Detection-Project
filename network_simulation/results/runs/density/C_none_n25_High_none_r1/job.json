@@ -1,0 +1,1 @@
+{"exp": "density", "name": "C_none_n25_High_none_r1", "scenario": "C", "prio": "none", "n": 25, "load_name": "High", "load": 5.181, "run": 1, "failure": "none", "variant": "", "duration": 60, "burst_t": 30, "fail_t": 0, "uplink": ""}

@@ -126,3 +126,7 @@ AntiRagging/
 ## License
 
 Released under the MIT License. See [LICENSE](LICENSE).
+
+---
+## Network simulation extension (SafeVoice transport study)
+See [`network_simulation/README.md`](network_simulation/README.md) and the Streamlit page `pages/2_Network_Simulation.py`.
