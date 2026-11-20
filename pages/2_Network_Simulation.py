@@ -28,6 +28,14 @@ c4.metric("802.11e access category", n.access_category)
 st.markdown("Critical alerts (score >= 0.75) use the voice access category and are dequeued first; when a queue is full, "
             "lower-severity packets are dropped first (push-out).")
 
+st.header("Animated run (real data)")
+_demo = os.path.join(SIM, "results", "demo")
+for _f, _cap in [("saturated_r1.mp4", "Saturated load, run 1: A / B / C / C-up on the same workload"),
+                 ("high_r1.mp4", "High load, run 1")]:
+    _p = os.path.join(_demo, _f)
+    if os.path.exists(_p):
+        st.caption(_cap + ". Straight lines show the logical source-to-desk path; per-hop routes are not logged.")
+        st.video(_p)
 st.header("2. Simulation results")
 st.info("Headline findings (n=50, 8 runs per cell; see the paper for statistics): provisioned infrastructure Wi-Fi delivered 100% of critical alerts at every load; "
         "severity priority on the ad-hoc mesh did NOT beat the same mesh without priority (neutral up to high load, worse at saturation); "
