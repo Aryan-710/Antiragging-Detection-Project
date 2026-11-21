@@ -900,6 +900,16 @@ if page == "📋 Report Incident":
 
     show_lime = st.checkbox("Show word-level explanation (LIME)", value=True)
 
+    # network-simulation sidebar controls (must be created before the Analyze button; see network_simulation/)
+    _sim_live, _sim_load = False, "Medium"
+    try:
+        import sys as _sys
+        _sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "network_simulation"))
+        from alert_demo_component import live_controls
+        _sim_live, _sim_load = live_controls()
+    except Exception as _e:
+        logging.getLogger(__name__).warning("network simulation controls unavailable: %s", _e)
+
     analyze_btn = st.button(
         "🔍 Analyze & Generate Report", type="primary", disabled=not models_ok
     )
@@ -1119,15 +1129,13 @@ if page == "📋 Report Incident":
                     help="In a live deployment, this emails the report to the college counselor.",
                 )
 
-        # ── Network simulation demo (shown only for CRITICAL reports) ──────
+        # ── Network simulation (shown only for CRITICAL reports) ───────────
         if risk["counselor_notified"]:
             try:
-                import sys as _sys
-                _sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "network_simulation"))
                 from alert_demo_component import render_alert_demo
-                render_alert_demo(sev_raw)
-            except Exception as _demo_err:  # the demo must never break the report
-                logging.getLogger(__name__).warning("alert demo unavailable: %s", _demo_err)
+                render_alert_demo(sev_raw, _sim_live, _sim_load)
+            except Exception as _demo_err:  # the simulation panel must never break the report
+                logging.getLogger(__name__).warning("network simulation panel unavailable: %s", _demo_err)
 
         # ── Resources ─────────────────────────────────────────────────────
         if sev_raw >= CONFIG["threshold_high"]:

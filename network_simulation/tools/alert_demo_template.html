@@ -39,13 +39,15 @@ svg{width:100%;height:auto;display:block}
 const DATA=/*__DATA__*/null, NODES=/*__NODES__*/null;
 const SCORE=/*__SCORE__*/null;   // severity score from the app (0..1) or null
 const AUTOSTART=/*__AUTOSTART__*/false;
+const LIVE=/*__LIVE__*/null;   // result of a real ns-3 run for this very alert, or null
+let liveLeft=!!LIVE;
 const SYS=[
  {k:"A",t:"SafeVoice mesh + priority",d:"Phone-to-phone ad-hoc network; critical alerts jump the queue."},
  {k:"B",t:"Mesh, no priority",d:"Same phone mesh, every packet treated equally."},
  {k:"C",t:"Provisioned campus Wi-Fi",d:"8 access points, healthy wired uplink to the server."},
  {k:"Cup",t:"Wi-Fi with congested uplink",d:"Same Wi-Fi, but the shared uplink is the bottleneck."}];
 const LOADS=[["Low","Quiet (10% load)"],["Medium","Busy (40%)"],["High","Very busy (80%)"],["Saturated","Overloaded (120%)"]];
-let load=(new URLSearchParams(location.search)).get("load")||"High"; if(!DATA[load]) load="High";
+let load=(LIVE&&LIVE.load)||(new URLSearchParams(location.search)).get("load")||"High"; if(!DATA[load]) load="High";
 const W=400,FH=96,GAP=10,H=4*(FH+GAP)+40, SX=380/40, SY=(FH-8)/15;
 const NS=NODES.slice(0,-1), DESK=NODES[NODES.length-1];
 const fl=z=>Math.min(3,Math.floor(z/3));
@@ -86,8 +88,10 @@ function route(k,src,hops){const sp=P(src),dp=P(DESK);
   pts.push(dp);return pts}
 function pointAt(pts,u){const L=[];let tot=0;for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);L.push(d);tot+=d}
   let x=u*tot,i=0;while(i<L.length-1&&x>L[i]){x-=L[i];i++}const f=L[i]?Math.min(1,x/L[i]):1;return [pts[i][0]+(pts[i+1][0]-pts[i][0])*f,pts[i][1]+(pts[i+1][1]-pts[i][1])*f]}
-function sendOne(src,quick){SYS.forEach(s=>{
-  const arr=DATA[load][s.k];const rec=arr[Math.floor(Math.random()*arr.length)];const ok=rec[0]>=0;
+function sendOne(src,quick){const useLive=liveLeft&&!quick;if(useLive)liveLeft=false;SYS.forEach(s=>{
+  const arr=DATA[load][s.k];let rec=arr[Math.floor(Math.random()*arr.length)];
+  if(useLive&&LIVE.systems[s.k]){const L=LIVE.systems[s.k];rec=[L.delivered?L.hops:-1,L.delivered?L.delay_ms:-1]}
+  const ok=rec[0]>=0;
   const hops=ok?rec[0]:Math.max(1,Math.round(1+Math.random()*2));
   const pts=route(s.k,src,hops);const g=panels[s.k].layer;
   const line=el("polyline",{points:pts.map(p=>p.join(",")).join(" "),fill:"none",stroke:ok?"#2ecc71":"#ff4d5e","stroke-width":1.4,opacity:.55,"stroke-dasharray":"3 3"},g);
@@ -105,9 +109,11 @@ function sendOne(src,quick){SYS.forEach(s=>{
     setTimeout(()=>{line.remove()},quick?1200:3200)})(t0)})}
 function clearAll(){SYS.forEach(s=>{while(panels[s.k].layer.firstChild)panels[s.k].layer.removeChild(panels[s.k].layer.firstChild)})}
 function randSrc(){const c=NS.filter(n=>fl(n[2])>=1);return c[Math.floor(Math.random()*c.length)]}
-document.getElementById("send").onclick=()=>{clearAll();sendOne(randSrc(),false)};
+function liveSrc(){if(!LIVE||!LIVE.alert)return randSrc();const A=LIVE.alert;let b=null,bd=1e9;NS.forEach(n=>{if(fl(n[2])!==A.floor)return;const d=(n[0]-A.x)**2+(n[1]-A.y)**2;if(d<bd){bd=d;b=n}});return b||randSrc()}
+document.getElementById("send").onclick=()=>{clearAll();sendOne(liveLeft?liveSrc():randSrc(),false)};
 document.getElementById("burst").onclick=()=>{clearAll();for(let i=0;i<10;i++)setTimeout(()=>sendOne(randSrc(),true),i*350)};
 document.getElementById("reset").onclick=()=>{clearAll();SYS.forEach(s=>{tally[s.k]={n:0,ok:0};document.getElementById("t_"+s.k).textContent="sent 0 · delivered 0";document.getElementById("r_"+s.k).innerHTML="&nbsp;"})};
 if(SCORE!==null){const b=document.getElementById("banner");b.style.display="block";b.innerHTML=`<b>CRITICAL</b> — your report scored <b>${Math.round(SCORE*100)}%</b> (≥ 75%). Class 3 → highest priority on the mesh (802.11e voice queue). Watch how each network carries the alert to the security desk:`}
+if(LIVE){const b=document.getElementById("banner");b.style.display="block";b.innerHTML=(b.innerHTML?b.innerHTML+"<br>":"")+`<b>LIVE ns-3 run</b> for this alert (seed ${LIVE.seed}, ${LIVE.window}s window, ${LIVE.load} load, simulated just now). The first alert below is the <b>real result of that run</b>; later clicks replay recorded outcomes from the 208-run study.`}
 loadButtons();table();if(AUTOSTART)setTimeout(()=>document.getElementById("send").click(),700);
 </script></body></html>

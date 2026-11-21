@@ -1,0 +1,4 @@
+.git
+network_simulation/results/runs
+network_simulation/results/workloads
+__pycache__

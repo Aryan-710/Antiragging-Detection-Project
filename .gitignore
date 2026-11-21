@@ -40,3 +40,5 @@ scratch/
 # ── Environment files ────────────────────────────────
 .env
 .env.local
+sim/safevoice-sim
+sim/safevoice-sim.new
