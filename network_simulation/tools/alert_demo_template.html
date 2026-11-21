@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SafeVoice critical alert demo</title>
+<style>
+:root{--bg:#0f1220;--card:#181c30;--ink:#e8eaf6;--mut:#9aa3c7;--line:#2a3050;--ok:#2ecc71;--bad:#ff4d5e;--crit:#ff4d5e;--acc:#6c8cff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif;padding:16px}
+h1{font-size:20px;margin:0 0 2px}.sub{color:var(--mut);margin:0 0 12px;font-size:13px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer}
+button.on{border-color:var(--acc);background:#232a55}button.go{background:var(--crit);border-color:var(--crit);color:#fff;font-weight:700}
+.banner{display:none;background:#3a1119;border:1px solid var(--crit);border-radius:10px;padding:8px 12px;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px}
+.card h2{font-size:14px;margin:2px 4px 0}.card .d{font-size:11.5px;color:var(--mut);margin:0 4px 4px;min-height:30px}
+svg{width:100%;height:auto;display:block}
+.res{min-height:22px;font-size:13px;margin:2px 4px;font-weight:600}
+.tally{font-size:12px;color:var(--mut);margin:0 4px 2px}
+.note{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px}
+.note b{color:#fff}table{border-collapse:collapse;width:100%;margin-top:6px}td,th{text-align:left;padding:3px 8px;border-bottom:1px solid var(--line);font-size:13px}
+.pct{font-weight:700}.fine{color:var(--mut);font-size:11.5px;margin-top:8px}
+</style></head><body>
+<h1>🚨 What happens to a CRITICAL SafeVoice alert on the hostel network?</h1>
+<p class="sub">Four ways to carry the alert to the security desk, replayed from real ns-3 simulation results (n=50 phones, 4 floors).</p>
+<div class="banner" id="banner"></div>
+<div class="bar">
+  <button class="go" id="send">🚨 Send critical alert</button>
+  <button id="burst">⚡ Crisis burst (10 alerts)</button>
+  <button id="reset">↺ Reset counters</button>
+  <span style="color:var(--mut);margin-left:8px">Network is:</span>
+  <span id="loads"></span>
+</div>
+<div class="grid" id="grid"></div>
+<div class="note"><b>Recorded delivery of CRITICAL alerts at this load</b> (every critical alert in the study, pooled over runs):
+<table id="tbl"></table>
+<div class="fine" id="takeaway"></div></div>
+<div class="fine">How to read this: each click replays a <b>real recorded outcome</b> from the simulation (delivered or lost, number of hops, delay). The recorded outcome is real; the exact relay phones and the point where a lost alert stops are drawn illustratively because the study logs hop counts, not individual routes. Source: 208 ns-3 runs, see the paper.</div>
+<script>
+const DATA=/*__DATA__*/null, NODES=/*__NODES__*/null;
+const SCORE=/*__SCORE__*/null;   // severity score from the app (0..1) or null
+const AUTOSTART=/*__AUTOSTART__*/false;
+const SYS=[
+ {k:"A",t:"SafeVoice mesh + priority",d:"Phone-to-phone ad-hoc network; critical alerts jump the queue."},
+ {k:"B",t:"Mesh, no priority",d:"Same phone mesh, every packet treated equally."},
+ {k:"C",t:"Provisioned campus Wi-Fi",d:"8 access points, healthy wired uplink to the server."},
+ {k:"Cup",t:"Wi-Fi with congested uplink",d:"Same Wi-Fi, but the shared uplink is the bottleneck."}];
+const LOADS=[["Low","Quiet (10% load)"],["Medium","Busy (40%)"],["High","Very busy (80%)"],["Saturated","Overloaded (120%)"]];
+let load=(new URLSearchParams(location.search)).get("load")||"High"; if(!DATA[load]) load="High";
+const W=400,FH=96,GAP=10,H=4*(FH+GAP)+40, SX=380/40, SY=(FH-8)/15;
+const NS=NODES.slice(0,-1), DESK=NODES[NODES.length-1];
+const fl=z=>Math.min(3,Math.floor(z/3));
+const P=n=>[10+n[0]*SX, (3-fl(n[2]))*(FH+GAP)+FH-4-n[1]*SY];
+const APS=[];for(let f=0;f<4;f++)for(const x of[10,30])APS.push([x,7.5,3*f+2.5]);
+const tally={};SYS.forEach(s=>tally[s.k]={n:0,ok:0});
+function el(tag,a,p){const e=document.createElementNS("http://www.w3.org/2000/svg",tag);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+const panels={};
+SYS.forEach(s=>{
+  const c=document.createElement("div");c.className="card";
+  c.innerHTML=`<h2>${s.t}</h2><div class="d">${s.d}</div><svg viewBox="0 0 ${W} ${H}"></svg><div class="res" id="r_${s.k}">&nbsp;</div><div class="tally" id="t_${s.k}">sent 0 · delivered 0</div>`;
+  document.getElementById("grid").appendChild(c);
+  const svg=c.querySelector("svg");
+  for(let f=0;f<4;f++){el("rect",{x:6,y:(3-f)*(FH+GAP),width:388,height:FH,rx:6,fill:"#10142a",stroke:"#2a3050"},svg);
+    el("rect",{x:6,y:(3-f)*(FH+GAP)+FH-4-9*SY,width:388,height:3*SY,fill:"#1b2142"},svg);
+    const tx=el("text",{x:12,y:(3-f)*(FH+GAP)+13,fill:"#5d6794","font-size":10},svg);tx.textContent="floor "+f}
+  const isInfra=(s.k==="C"||s.k==="Cup");
+  if(isInfra)APS.forEach(a=>{const p=P(a);el("rect",{x:p[0]-4,y:(3-fl(a[2]))*(FH+GAP)+8,width:8,height:8,fill:"#4aa3ff",rx:2},svg)});
+  NS.forEach(n=>{const p=P(n);el("circle",{cx:p[0],cy:p[1],r:2.6,fill:"#6c8cff",opacity:.8},svg)});
+  const dp=P(DESK);el("rect",{x:dp[0]-6,y:dp[1]-6,width:12,height:12,fill:"#fff",rx:2},svg);
+  const dl=el("text",{x:dp[0]+9,y:dp[1]+4,fill:"#fff","font-size":10},svg);dl.textContent="security desk";
+  const layer=el("g",{},svg);panels[s.k]={svg,layer,isInfra};
+});
+function loadButtons(){const h=document.getElementById("loads");h.innerHTML="";LOADS.forEach(([k,l])=>{const b=document.createElement("button");b.textContent=l;if(k===load)b.className="on";b.onclick=()=>{load=k;loadButtons();table()};h.appendChild(b)})}
+function pct(a){const ok=a.filter(r=>r[0]>=0).length;return a.length?100*ok/a.length:0}
+function table(){const rows=SYS.map(s=>{const a=DATA[load][s.k];return `<tr><td>${s.t}</td><td class="pct" style="color:${pct(a)>=95?'var(--ok)':pct(a)>=80?'#ffd166':'var(--bad)'}">${pct(a).toFixed(0)}%</td><td style="color:var(--mut)">${a.filter(r=>r[0]>=0).length} of ${a.length} alerts</td></tr>`}).join("");
+  document.getElementById("tbl").innerHTML="<tr><th>System</th><th>delivered</th><th></th></tr>"+rows;
+  const A=pct(DATA[load].A),B=pct(DATA[load].B),C=pct(DATA[load].C),U=pct(DATA[load].Cup);
+  document.getElementById("takeaway").innerHTML=`At this load: provisioned Wi-Fi ${C.toFixed(0)}%, mesh+priority ${A.toFixed(0)}%, mesh without priority ${B.toFixed(0)}%, congested-uplink Wi-Fi ${U.toFixed(0)}%. `+
+   `Honest reading of the whole study: provisioned Wi-Fi is best; priority did <b>not</b> beat the plain mesh (at overload it did worse); the phone mesh keeps working when the Wi-Fi uplink is the bottleneck, so it is proposed as a <b>fallback path</b>.`}
+function route(k,src,hops){const sp=P(src),dp=P(DESK);
+  if(panels[k].isInfra){let best=0,bd=1e9;APS.forEach((a,i)=>{const p=P(a);const d=Math.hypot(p[0]-sp[0],(3-fl(a[2]))*(FH+GAP)-(3-fl(src[2]))*(FH+GAP))+(fl(a[2])===fl(src[2])?0:1e3);if(d<bd){bd=d;best=i}});
+    const ap=APS[best],apP=[P(ap)[0],(3-fl(ap[2]))*(FH+GAP)+12];return [sp,apP,[392,H-14],[dp[0],dp[1]]]}
+  const pts=[sp];const used=new Set();
+  for(let i=1;i<hops;i++){const t=i/hops;const tx=src[0]+(DESK[0]-src[0])*t,ty=src[1]+(DESK[1]-src[1])*t,tz=src[2]+(DESK[2]-src[2])*t;
+    let bi=-1,bd=1e9;NS.forEach((n,j)=>{if(used.has(j)||n===src)return;const d=(n[0]-tx)**2+(n[1]-ty)**2+(3*(n[2]-tz))**2;if(d<bd){bd=d;bi=j}});
+    if(bi>=0){used.add(bi);pts.push(P(NS[bi]))}}
+  pts.push(dp);return pts}
+function pointAt(pts,u){const L=[];let tot=0;for(let i=1;i<pts.length;i++){const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);L.push(d);tot+=d}
+  let x=u*tot,i=0;while(i<L.length-1&&x>L[i]){x-=L[i];i++}const f=L[i]?Math.min(1,x/L[i]):1;return [pts[i][0]+(pts[i+1][0]-pts[i][0])*f,pts[i][1]+(pts[i+1][1]-pts[i][1])*f]}
+function sendOne(src,quick){SYS.forEach(s=>{
+  const arr=DATA[load][s.k];const rec=arr[Math.floor(Math.random()*arr.length)];const ok=rec[0]>=0;
+  const hops=ok?rec[0]:Math.max(1,Math.round(1+Math.random()*2));
+  const pts=route(s.k,src,hops);const g=panels[s.k].layer;
+  const line=el("polyline",{points:pts.map(p=>p.join(",")).join(" "),fill:"none",stroke:ok?"#2ecc71":"#ff4d5e","stroke-width":1.4,opacity:.55,"stroke-dasharray":"3 3"},g);
+  pts.slice(0,-1).forEach(p=>el("circle",{cx:p[0],cy:p[1],r:4.5,fill:"none",stroke:"#ff4d5e","stroke-width":1.6},g));
+  const dot=el("circle",{r:5.5,fill:"#ff4d5e",stroke:"#fff","stroke-width":1.2},g);
+  const stop=ok?1:(0.35+Math.random()*0.45),dur=(quick?700:1700)*(ok?1:stop),t0=performance.now();
+  tally[s.k].n++;
+  const R=document.getElementById("r_"+s.k);if(!quick)R.innerHTML="&nbsp;";
+  (function step(now){const u=Math.min(1,(now-t0)/dur)*stop;const p=pointAt(pts,u);dot.setAttribute("cx",p[0]);dot.setAttribute("cy",p[1]);
+    if((now-t0)<dur){requestAnimationFrame(step);return}
+    if(ok){tally[s.k].ok++;dot.setAttribute("fill","#2ecc71");el("circle",{cx:pts[pts.length-1][0],cy:pts[pts.length-1][1],r:12,fill:"none",stroke:"#2ecc71","stroke-width":2.5},g);
+      R.style.color="var(--ok)";R.textContent=`✔ delivered · ${s.k==="C"||s.k==="Cup"?"via Wi-Fi":rec[0]+" hop"+(rec[0]>1?"s":"")} · ${rec[1]<1?"<1 ms":rec[1]<1000?rec[1].toFixed(0)+" ms":(rec[1]/1000).toFixed(2)+" s"}`}
+    else{dot.remove();const x=p[0],y=p[1];el("path",{d:`M${x-6},${y-6}L${x+6},${y+6}M${x+6},${y-6}L${x-6},${y+6}`,stroke:"#ff4d5e","stroke-width":3.2},g);R.style.color="var(--bad)";R.textContent="✖ lost (recorded outcome)"}
+    document.getElementById("t_"+s.k).textContent=`sent ${tally[s.k].n} · delivered ${tally[s.k].ok}`;
+    setTimeout(()=>{line.remove()},quick?1200:3200)})(t0)})}
+function clearAll(){SYS.forEach(s=>{while(panels[s.k].layer.firstChild)panels[s.k].layer.removeChild(panels[s.k].layer.firstChild)})}
+function randSrc(){const c=NS.filter(n=>fl(n[2])>=1);return c[Math.floor(Math.random()*c.length)]}
+document.getElementById("send").onclick=()=>{clearAll();sendOne(randSrc(),false)};
+document.getElementById("burst").onclick=()=>{clearAll();for(let i=0;i<10;i++)setTimeout(()=>sendOne(randSrc(),true),i*350)};
+document.getElementById("reset").onclick=()=>{clearAll();SYS.forEach(s=>{tally[s.k]={n:0,ok:0};document.getElementById("t_"+s.k).textContent="sent 0 · delivered 0";document.getElementById("r_"+s.k).innerHTML="&nbsp;"})};
+if(SCORE!==null){const b=document.getElementById("banner");b.style.display="block";b.innerHTML=`<b>CRITICAL</b> — your report scored <b>${Math.round(SCORE*100)}%</b> (≥ 75%). Class 3 → highest priority on the mesh (802.11e voice queue). Watch how each network carries the alert to the security desk:`}
+loadButtons();table();if(AUTOSTART)setTimeout(()=>document.getElementById("send").click(),700);
+</script></body></html>

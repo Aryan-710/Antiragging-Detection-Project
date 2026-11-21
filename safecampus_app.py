@@ -1119,6 +1119,16 @@ if page == "📋 Report Incident":
                     help="In a live deployment, this emails the report to the college counselor.",
                 )
 
+        # ── Network simulation demo (shown only for CRITICAL reports) ──────
+        if risk["counselor_notified"]:
+            try:
+                import sys as _sys
+                _sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "network_simulation"))
+                from alert_demo_component import render_alert_demo
+                render_alert_demo(sev_raw)
+            except Exception as _demo_err:  # the demo must never break the report
+                logging.getLogger(__name__).warning("alert demo unavailable: %s", _demo_err)
+
         # ── Resources ─────────────────────────────────────────────────────
         if sev_raw >= CONFIG["threshold_high"]:
             st.markdown("---")
